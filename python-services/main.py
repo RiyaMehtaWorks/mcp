@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
+import torch
 
 app = FastAPI()
+
+print(torch.cuda.device_count())
+print(torch.cuda.get_device_name(1))
 # loading the model, added device due to crash when the cuda:0 was being used by default
 model = SentenceTransformer("all-MiniLM-L6-v2", device="cuda:1")
 
