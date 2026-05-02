@@ -1,7 +1,8 @@
+import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-import torch
+from utils import compute_score
 
 app = FastAPI()
 
@@ -11,13 +12,13 @@ print(torch.cuda.get_device_name(1))
 model = SentenceTransformer("all-MiniLM-L6-v2", device="cuda:1")
 
 documents = [
-    {"id": 1, "doc_origin": "state", "state": "Haryana", "crop": "Wheat", "score": 0.9},
-    {"id": 2, "doc_origin": "state", "state": "Haryana", "crop": "Wheat", "score": 0.85},
-    {"id": 3, "doc_origin": "central", "state": "Haryana", "crop": "Wheat", "score": 0.82},
-    {"id": 4, "doc_origin": "other", "state": "Haryana", "crop": "Wheat", "score": 0.88},
-    {"id": 5, "doc_origin": "other", "state": "Haryana", "crop": "Wheat", "score": 0.7},
-    {"id": 6, "doc_origin": "central", "state": "Punjab", "crop": "Rice", "score": 0.95},
-    {"id": 7, "doc_origin": "state", "state": "Haryana", "crop": "Wheat", "score": 0.95}
+    {"id": 1, "doc_origin": "state", "state": "Haryana", "crop": "Sugarcane"},
+    {"id": 2, "doc_origin": "state", "state": "Himachal", "crop": "Wheat"},
+    {"id": 3, "doc_origin": "central", "state": "Punjab", "crop": "Wheat"},
+    {"id": 4, "doc_origin": "other", "state": "Haryana", "crop": "Rice"},
+    {"id": 5, "doc_origin": "other", "state": "Haryana", "crop": "Wheat"},
+    {"id": 6, "doc_origin": "central", "state": "Punjab", "crop": "Rice"},
+    {"id": 7, "doc_origin": "state", "state": "Haryana", "crop": "Wheat"}
 ]
 
 class SearchRequest(BaseModel):
@@ -36,6 +37,7 @@ def embed():
 
 @app.post("/search")
 def search(req: SearchRequest):
+    query_embedding = model.encode(req.query)
     results = []
 
     priority_order = ["state", "central", "other"]
@@ -53,12 +55,22 @@ def search(req: SearchRequest):
                 matching_docs.append(doc)
 
         # Step 2: filter by score
-        high_score_docs = []
-        for doc in matching_docs:
-            if doc["score"] >= 0.8:
-                print("ADDING:", doc)
-                high_score_docs.append(doc)
+        # high_score_docs = []
+        # for doc in matching_docs:
+            # if doc["score"] >= 0.8:
+            #     print("ADDING:", doc)
+            #     high_score_docs.append(doc)
 
+        high_score_docs = []
+
+        for doc in matching_docs:
+            score = compute_score(model, query_embedding, doc)
+
+            print("SCORE:", score, "DOC:", doc)
+
+            if score >= 0.5:
+                high_score_docs.append(doc)
+        
         # Step 3: add to results
         results.extend(high_score_docs)
 
