@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
+
 app = FastAPI()
+# loading the model, added device due to crash when the cuda:0 was being used by default
+model = SentenceTransformer("all-MiniLM-L6-v2", device="cuda:1")
 
 documents = [
     {"id": 1, "doc_origin": "state", "state": "Haryana", "crop": "Wheat", "score": 0.9},
@@ -20,6 +24,11 @@ class SearchRequest(BaseModel):
 @app.get("/ping")
 def ping():
     return {"message": "Python service is working"}
+
+@app.get("/embed")
+def embed():
+    vec = model.encode("wheat fertilizer")
+    return {"length": len(vec)}
 
 @app.post("/search")
 def search(req: SearchRequest):
